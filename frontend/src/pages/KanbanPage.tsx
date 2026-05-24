@@ -14,10 +14,47 @@ import { Modal } from '../components/common/Modal';
 import { Button } from '../components/common/Button';
 import { CommentSection } from '../components/common/CommentSection';
 import { tasksApi } from '../api/tasks.api';
+import { projectsApi } from '../api/projects.api';
 import { onCommentEvent, offCommentEvent } from '../socket/socketManager';
-import type { Task, TaskStatus, Comment } from '../types';
+import type { Task, TaskStatus, TaskPriority, Comment } from '../types';
 
 const COLUMNS: TaskStatus[] = ['backlog', 'todo', 'in_progress', 'review', 'done'];
+const PRIORITIES: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
+
+interface ProjectMemberOption {
+  id: string;
+  User: { id: string; name: string; email: string };
+}
+
+interface AddTaskForm {
+  title: string;
+  description: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  assigneeId: string;
+  sprintId: string;
+  parentTaskId: string;
+  startDate: string;
+  dueDate: string;
+  storyPoints: string;
+  position: string;
+  labels: string;
+}
+
+const createEmptyTaskForm = (status: TaskStatus, sprintId?: string): AddTaskForm => ({
+  title: '',
+  description: '',
+  status,
+  priority: 'medium',
+  assigneeId: '',
+  sprintId: sprintId ?? '',
+  parentTaskId: '',
+  startDate: '',
+  dueDate: '',
+  storyPoints: '',
+  position: '',
+  labels: '',
+});
 
 export const KanbanPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -30,7 +67,8 @@ export const KanbanPage: React.FC = () => {
   const [taskDetail, setTaskDetail] = useState<Task | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [addStatus, setAddStatus] = useState<TaskStatus | null>(null);
-  const [newTitle, setNewTitle] = useState('');
+  const [taskForm, setTaskForm] = useState<AddTaskForm>(() => createEmptyTaskForm('todo'));
+  const [members, setMembers] = useState<ProjectMemberOption[]>([]);
   const [addError, setAddError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [dragError, setDragError] = useState<string | null>(null);
@@ -74,6 +112,13 @@ export const KanbanPage: React.FC = () => {
     fetchSprints(projectId);
   }, [projectId, fetchAll, fetchOne, fetchSprints]);
 
+  useEffect(() => {
+    if (!projectId) return;
+    projectsApi.getMembers(projectId)
+      .then(({ data }) => setMembers(data.members))
+      .catch(() => setMembers([]));
+  }, [projectId]);
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const tasksByStatus = useCallback((status: TaskStatus) =>
@@ -108,17 +153,46 @@ export const KanbanPage: React.FC = () => {
     }
   };
 
+  const openAddTask = (status: TaskStatus) => {
+    const sprintId = sprintFilter !== 'all' && sprintFilter !== 'backlog' ? sprintFilter : '';
+    setTaskForm(createEmptyTaskForm(status, sprintId));
+    setAddError(null);
+    setAddStatus(status);
+  };
+
   const handleAddTask = async () => {
-    if (!newTitle.trim() || !projectId || !addStatus) return;
+    const title = taskForm.title.trim();
+    if (!title || !projectId || !addStatus || isAdding) return;
+    if (taskForm.startDate && taskForm.dueDate && taskForm.dueDate < taskForm.startDate) {
+      setAddError('Tanggal jatuh tempo tidak boleh sebelum tanggal mulai.');
+      return;
+    }
+
+    const labels = taskForm.labels
+      .split(',')
+      .map(label => label.trim())
+      .filter(Boolean);
+    const storyPoints = taskForm.storyPoints === '' ? undefined : Number(taskForm.storyPoints);
+    const position = taskForm.position === '' ? undefined : Number(taskForm.position);
+
     setAddError(null);
     setIsAdding(true);
     try {
       await create(projectId, {
-        title: newTitle,
-        status: addStatus,
-        sprintId: sprintFilter !== 'all' && sprintFilter !== 'backlog' ? sprintFilter : undefined,
+        title,
+        description: taskForm.description.trim() || undefined,
+        status: taskForm.status,
+        priority: taskForm.priority,
+        assigneeId: taskForm.assigneeId || undefined,
+        sprintId: taskForm.sprintId || undefined,
+        parentTaskId: taskForm.parentTaskId || undefined,
+        startDate: taskForm.startDate || undefined,
+        dueDate: taskForm.dueDate || undefined,
+        storyPoints,
+        position,
+        labels,
       });
-      setNewTitle('');
+      setTaskForm(createEmptyTaskForm('todo'));
       setAddStatus(null);
     } catch (err: any) {
       setAddError(err?.response?.data?.message ?? 'Gagal membuat task. Coba lagi.');
@@ -130,7 +204,7 @@ export const KanbanPage: React.FC = () => {
   const handleCloseAddModal = () => {
     setAddStatus(null);
     setAddError(null);
-    setNewTitle('');
+    setTaskForm(createEmptyTaskForm('todo'));
   };
 
   return (
@@ -154,7 +228,7 @@ export const KanbanPage: React.FC = () => {
               </option>
             ))}
           </select>
-          <Button onClick={() => setAddStatus('todo')} size="sm">
+          <Button onClick={() => openAddTask('todo')} size="sm">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
@@ -182,7 +256,7 @@ export const KanbanPage: React.FC = () => {
             <div className="flex gap-4 pb-4">
               {COLUMNS.map(status => (
                 <KanbanColumn key={status} status={status} tasks={tasksByStatus(status)}
-                  onTaskClick={setSelectedTask} onAddTask={setAddStatus} />
+                  onTaskClick={setSelectedTask} onAddTask={openAddTask} />
               ))}
             </div>
             <DragOverlay>
@@ -196,27 +270,177 @@ export const KanbanPage: React.FC = () => {
         )}
       </div>
 
-      <Modal open={!!addStatus} onClose={handleCloseAddModal} title="Tambah Task Baru" size="sm">
-        <div className="space-y-4">
+      <Modal open={!!addStatus} onClose={handleCloseAddModal} title="Tambah Task Baru" size="lg">
+        <form
+          className="space-y-4"
+          onSubmit={e => {
+            e.preventDefault();
+            handleAddTask();
+          }}
+        >
           <div>
-            <label className="label">Judul Task</label>
+            <label className="label">Judul Task *</label>
             <input
-              autoFocus className="input" value={newTitle}
-              onChange={e => setNewTitle(e.target.value)}
+              autoFocus className="input" value={taskForm.title}
+              onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))}
               placeholder="Apa yang perlu dikerjakan?"
-              onKeyDown={e => e.key === 'Enter' && handleAddTask()}
+              maxLength={250}
+              required
             />
           </div>
+
+          <div>
+            <label className="label">Deskripsi</label>
+            <textarea
+              className="input resize-none"
+              rows={3}
+              value={taskForm.description}
+              onChange={e => setTaskForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Tambahkan detail pekerjaan, konteks, atau checklist singkat"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Status</label>
+              <select
+                className="input"
+                value={taskForm.status}
+                onChange={e => setTaskForm(f => ({ ...f, status: e.target.value as TaskStatus }))}
+              >
+                {COLUMNS.map(status => (
+                  <option key={status} value={status}>{status.replace('_', ' ')}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Prioritas</label>
+              <select
+                className="input"
+                value={taskForm.priority}
+                onChange={e => setTaskForm(f => ({ ...f, priority: e.target.value as TaskPriority }))}
+              >
+                {PRIORITIES.map(priority => (
+                  <option key={priority} value={priority}>{priority}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Assignee</label>
+              <select
+                className="input"
+                value={taskForm.assigneeId}
+                onChange={e => setTaskForm(f => ({ ...f, assigneeId: e.target.value }))}
+              >
+                <option value="">Belum ditugaskan</option>
+                {members.map(member => (
+                  <option key={member.User.id} value={member.User.id}>
+                    {member.User.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Sprint</label>
+              <select
+                className="input"
+                value={taskForm.sprintId}
+                onChange={e => setTaskForm(f => ({ ...f, sprintId: e.target.value }))}
+              >
+                <option value="">Tanpa Sprint</option>
+                {sprints.map(sprint => (
+                  <option key={sprint.id} value={sprint.id}>
+                    {sprint.status === 'active' ? 'aktif: ' : ''}{sprint.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="label">Parent Task</label>
+            <select
+              className="input"
+              value={taskForm.parentTaskId}
+              onChange={e => setTaskForm(f => ({ ...f, parentTaskId: e.target.value }))}
+            >
+              <option value="">Tidak ada parent</option>
+              {tasks
+                .filter(task => !task.parentTaskId)
+                .map(task => (
+                  <option key={task.id} value={task.id}>{task.title}</option>
+                ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-4 gap-3">
+            <div>
+              <label className="label">Tanggal Mulai</label>
+              <input
+                className="input"
+                type="date"
+                value={taskForm.startDate}
+                onChange={e => setTaskForm(f => ({ ...f, startDate: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="label">Jatuh Tempo</label>
+              <input
+                className="input"
+                type="date"
+                value={taskForm.dueDate}
+                onChange={e => setTaskForm(f => ({ ...f, dueDate: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="label">Story Points</label>
+              <input
+                className="input"
+                type="number"
+                min={0}
+                max={999}
+                value={taskForm.storyPoints}
+                onChange={e => setTaskForm(f => ({ ...f, storyPoints: e.target.value }))}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="label">Posisi</label>
+              <input
+                className="input"
+                type="number"
+                min={0}
+                step="0.1"
+                value={taskForm.position}
+                onChange={e => setTaskForm(f => ({ ...f, position: e.target.value }))}
+                placeholder="auto"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="label">Labels</label>
+            <input
+              className="input"
+              value={taskForm.labels}
+              onChange={e => setTaskForm(f => ({ ...f, labels: e.target.value }))}
+              placeholder="frontend, urgent, dokumen"
+            />
+          </div>
+
           {addError && (
             <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{addError}</p>
           )}
           <div className="flex gap-2 justify-end">
-            <Button variant="secondary" onClick={handleCloseAddModal}>Batal</Button>
-            <Button onClick={handleAddTask} disabled={!newTitle.trim() || isAdding}>
-              {isAdding ? 'Membuat...' : 'Buat Task'}
+            <Button type="button" variant="secondary" onClick={handleCloseAddModal}>Batal</Button>
+            <Button type="submit" loading={isAdding} disabled={!taskForm.title.trim()}>
+              Buat Task
             </Button>
           </div>
-        </div>
+        </form>
       </Modal>
 
       <Modal open={!!selectedTask} onClose={() => setSelectedTask(null)} title={selectedTask?.title ?? ''} size="lg">

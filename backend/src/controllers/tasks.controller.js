@@ -46,10 +46,10 @@ exports.create = async (req, res, next) => {
     if (!(await isMember(req.params.id, req.user.id))) {
       return res.status(403).json({ success: false, message: 'Akses ditolak' });
     }
-    const { title, description, status, priority, assigneeId, dueDate, startDate, storyPoints, labels, sprintId, parentTaskId } = req.body;
+    const { title, description, status, priority, assigneeId, dueDate, startDate, storyPoints, position, labels, sprintId, parentTaskId } = req.body;
     const task = await Task.create({
       title, description, status, priority, assigneeId, dueDate, startDate,
-      storyPoints, labels, sprintId, parentTaskId,
+      storyPoints, position, labels, sprintId, parentTaskId,
       projectId: req.params.id, reporterId: req.user.id,
     });
     const full = await Task.findByPk(task.id, { include: taskIncludes() });

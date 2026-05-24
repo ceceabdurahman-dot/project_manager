@@ -35,7 +35,11 @@ export const useTaskStore = create<TaskState>((set) => ({
 
   create: async (projectId, d) => {
     const { data } = await tasksApi.create(projectId, d);
-    set(s => ({ tasks: [...s.tasks, data.task] }));
+    set(s => ({
+      tasks: s.tasks.some(t => t.id === data.task.id)
+        ? s.tasks.map(t => t.id === data.task.id ? data.task : t)
+        : [...s.tasks, data.task],
+    }));
     return data.task;
   },
 

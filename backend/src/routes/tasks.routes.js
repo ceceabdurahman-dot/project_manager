@@ -21,6 +21,20 @@ const commentValidation = [
   validateRequest,
 ];
 
+const taskValidation = [
+  body('title').trim().notEmpty().withMessage('Judul task wajib diisi')
+    .isLength({ max: 250 }).withMessage('Judul task maksimal 250 karakter'),
+  body('status').optional()
+    .isIn(['backlog', 'todo', 'in_progress', 'review', 'done']).withMessage('Status tidak valid'),
+  body('priority').optional()
+    .isIn(['low', 'medium', 'high', 'urgent']).withMessage('Prioritas tidak valid'),
+  body('storyPoints').optional({ nullable: true })
+    .isInt({ min: 0, max: 999 }).withMessage('Story points harus berupa angka 0-999'),
+  body('position').optional({ nullable: true })
+    .isFloat({ min: 0 }).withMessage('Posisi harus berupa angka 0 atau lebih'),
+  validateRequest,
+];
+
 // Tangani error multer (tipe file / ukuran) agar tidak jadi 500
 const handleUploadError = (err, req, res, next) => {
   if (err && err.message) {
@@ -31,7 +45,7 @@ const handleUploadError = (err, req, res, next) => {
 
 // ── Tasks ─────────────────────────────────────────────────────────────
 router.get('/projects/:id/tasks',         authenticate, c.getAll);
-router.post('/projects/:id/tasks',        authenticate, c.create);
+router.post('/projects/:id/tasks',        authenticate, ...taskValidation, c.create);
 router.get('/tasks/:id',                  authenticate, c.getOne);
 router.put('/tasks/:id',                  authenticate, c.update);
 router.delete('/tasks/:id',              authenticate, c.remove);
