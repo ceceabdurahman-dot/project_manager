@@ -68,11 +68,11 @@ interface ActivityResponse {
 
 export const reportsApi = {
   getDashboard: () =>
-    api.get<DashboardResponse>('/reports/dashboard'),
+    api.get<DashboardResponse>('/dashboard/summary'),
   getWorkload: (projectId: string) =>
-    api.get<WorkloadResponse>(`/reports/projects/${projectId}/workload`),
+    api.get<WorkloadResponse>(`/reports/workload/${projectId}`),
   getBurndown: (sprintId: string) =>
-    api.get<BurndownResponse>(`/reports/sprints/${sprintId}/burndown`),
+    api.get<BurndownResponse>(`/reports/burndown/${sprintId}`),
   getProjectActivity: (projectId: string, params?: { limit?: number; offset?: number }) =>
-    api.get<ActivityResponse>(`/reports/projects/${projectId}/activity`, { params }),
+    api.get<ActivityResponse>(`/projects/${projectId}/activity`, { params }),
 };
