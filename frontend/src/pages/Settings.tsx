@@ -4,6 +4,7 @@ import { useProjectStore } from '../store/projectStore';
 import { Button } from '../components/common/Button';
 import { SprintPanel } from '../components/common/SprintPanel';
 import { MemberPanel } from '../components/common/MemberPanel';
+import { authApi } from '../api/auth.api';
 
 type ProjectStatus = 'active' | 'completed' | 'archived';
 
@@ -14,6 +15,14 @@ export const Settings: React.FC = () => {
     name: '', description: '', status: 'active',
   });
   const [saved, setSaved] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSaved, setPasswordSaved] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
@@ -31,6 +40,32 @@ export const Settings: React.FC = () => {
     if (!projectId) return;
     await update(projectId, form);
     setSaved(true); setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSaved(false);
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('Konfirmasi password baru tidak cocok');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await authApi.updateProfile({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setPasswordSaved(true);
+      setTimeout(() => setPasswordSaved(false), 2500);
+    } catch (err: any) {
+      setPasswordError(err?.response?.data?.message ?? 'Gagal mengganti password');
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   return (
@@ -61,6 +96,55 @@ export const Settings: React.FC = () => {
           {saved && <span className="text-sm text-green-600">Tersimpan</span>}
         </div>
       </form>
+
+      <form onSubmit={handleChangePassword} className="card p-6 space-y-4">
+        <div>
+          <h2 className="font-semibold text-gray-900">Ganti Password</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Masukkan password lama untuk menjaga akun tetap aman.</p>
+        </div>
+        <div>
+          <label className="label">Password Lama</label>
+          <input
+            className="input"
+            type="password"
+            value={passwordForm.currentPassword}
+            onChange={e => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))}
+            required
+          />
+        </div>
+        <div>
+          <label className="label">Password Baru</label>
+          <input
+            className="input"
+            type="password"
+            value={passwordForm.newPassword}
+            onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
+            minLength={8}
+            maxLength={128}
+            required
+          />
+        </div>
+        <div>
+          <label className="label">Konfirmasi Password Baru</label>
+          <input
+            className="input"
+            type="password"
+            value={passwordForm.confirmPassword}
+            onChange={e => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))}
+            minLength={8}
+            maxLength={128}
+            required
+          />
+        </div>
+        {passwordError && (
+          <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{passwordError}</p>
+        )}
+        <div className="flex items-center gap-3 pt-2">
+          <Button type="submit" loading={passwordLoading}>Ganti Password</Button>
+          {passwordSaved && <span className="text-sm text-green-600">Password berhasil diganti</span>}
+        </div>
+      </form>
+
       {/* Member Management */}
       {projectId && (
         <div className="card p-6">
