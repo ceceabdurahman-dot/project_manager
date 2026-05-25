@@ -71,9 +71,32 @@ const createEmptyTaskForm = (status: TaskStatus, sprintId?: string): AddTaskForm
   labels: '',
 });
 
+const formatDateInput = (value?: string): string => value ? value.slice(0, 10) : '';
+
+const createTaskFormFromTask = (task: Task): AddTaskForm => ({
+  title: task.title ?? '',
+  description: task.description ?? '',
+  status: task.status,
+  priority: task.priority,
+  assigneeId: task.assigneeId ?? '',
+  sprintId: task.sprintId ?? '',
+  parentTaskId: task.parentTaskId ?? '',
+  startDate: formatDateInput(task.startDate),
+  dueDate: formatDateInput(task.dueDate),
+  storyPoints: task.storyPoints == null ? '' : String(task.storyPoints),
+  position: task.position == null ? '' : String(task.position),
+  labels: Array.isArray(task.labels) ? task.labels.join(', ') : '',
+});
+
+const normalizeTaskDetail = (task: Task & { Comments?: Comment[]; Attachments?: Attachment[] }): Task => ({
+  ...task,
+  comments: task.comments ?? task.Comments ?? [],
+  attachments: task.attachments ?? task.Attachments ?? [],
+});
+
 export const KanbanPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
-  const { tasks, fetchAll, move, create, isLoading } = useTaskStore();
+  const { tasks, fetchAll, move, create, update: updateTask, remove: removeTask, isLoading } = useTaskStore();
   const { current, fetchOne } = useProjectStore();
   const { sprints, fetchAll: fetchSprints } = useSprintStore();
   const [sprintFilter, setSprintFilter] = useState<string>('all');
@@ -82,17 +105,19 @@ export const KanbanPage: React.FC = () => {
   const [taskDetail, setTaskDetail] = useState<Task | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [addStatus, setAddStatus] = useState<TaskStatus | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskForm, setTaskForm] = useState<AddTaskForm>(() => createEmptyTaskForm('todo'));
   const [members, setMembers] = useState<ProjectMemberOption[]>([]);
-  const [addError, setAddError] = useState<string | null>(null);
-  const [isAdding, setIsAdding] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSavingTask, setIsSavingTask] = useState(false);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
   const [dragError, setDragError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedTask) { setTaskDetail(null); return; }
     setDetailLoading(true);
     tasksApi.getOne(selectedTask.id)
-      .then(({ data }) => setTaskDetail(data.task))
+      .then(({ data }) => setTaskDetail(normalizeTaskDetail(data.task)))
       .catch(() => setTaskDetail(selectedTask))
       .finally(() => setDetailLoading(false));
   }, [selectedTask]);
@@ -171,18 +196,21 @@ export const KanbanPage: React.FC = () => {
   const openAddTask = (status: TaskStatus) => {
     const sprintId = sprintFilter !== 'all' && sprintFilter !== 'backlog' ? sprintFilter : '';
     setTaskForm(createEmptyTaskForm(status, sprintId));
-    setAddError(null);
+    setFormError(null);
+    setEditingTask(null);
     setAddStatus(status);
   };
 
-  const handleAddTask = async () => {
-    const title = taskForm.title.trim();
-    if (!title || !projectId || !addStatus || isAdding) return;
-    if (taskForm.startDate && taskForm.dueDate && taskForm.dueDate < taskForm.startDate) {
-      setAddError('Tanggal jatuh tempo tidak boleh sebelum tanggal mulai.');
-      return;
-    }
+  const openEditTask = (task: Task) => {
+    const taskForForm = taskDetail ?? task;
+    setTaskForm(createTaskFormFromTask(taskForForm));
+    setFormError(null);
+    setAddStatus(null);
+    setEditingTask(taskForForm);
+    setSelectedTask(null);
+  };
 
+  const buildTaskPayload = () => {
     const labels = taskForm.labels
       .split(',')
       .map(label => label.trim())
@@ -190,35 +218,71 @@ export const KanbanPage: React.FC = () => {
     const storyPoints = taskForm.storyPoints === '' ? undefined : Number(taskForm.storyPoints);
     const position = taskForm.position === '' ? undefined : Number(taskForm.position);
 
-    setAddError(null);
-    setIsAdding(true);
+    return {
+      title: taskForm.title.trim(),
+      description: taskForm.description.trim() || undefined,
+      status: taskForm.status,
+      priority: taskForm.priority,
+      assigneeId: taskForm.assigneeId || undefined,
+      sprintId: taskForm.sprintId || undefined,
+      parentTaskId: taskForm.parentTaskId || undefined,
+      startDate: taskForm.startDate || undefined,
+      dueDate: taskForm.dueDate || undefined,
+      storyPoints,
+      position,
+      labels,
+    };
+  };
+
+  const handleSaveTask = async () => {
+    const title = taskForm.title.trim();
+    if (!title || isSavingTask) return;
+    if (!editingTask && (!projectId || !addStatus)) return;
+    if (taskForm.startDate && taskForm.dueDate && taskForm.dueDate < taskForm.startDate) {
+      setFormError('Tanggal jatuh tempo tidak boleh sebelum tanggal mulai.');
+      return;
+    }
+
+    setFormError(null);
+    setIsSavingTask(true);
     try {
-      await create(projectId, {
-        title,
-        description: taskForm.description.trim() || undefined,
-        status: taskForm.status,
-        priority: taskForm.priority,
-        assigneeId: taskForm.assigneeId || undefined,
-        sprintId: taskForm.sprintId || undefined,
-        parentTaskId: taskForm.parentTaskId || undefined,
-        startDate: taskForm.startDate || undefined,
-        dueDate: taskForm.dueDate || undefined,
-        storyPoints,
-        position,
-        labels,
-      });
+      const payload = buildTaskPayload();
+      if (editingTask) {
+        await updateTask(editingTask.id, payload);
+      } else if (projectId) {
+        await create(projectId, payload);
+      }
       setTaskForm(createEmptyTaskForm('todo'));
       setAddStatus(null);
+      setEditingTask(null);
     } catch (err: any) {
-      setAddError(err?.response?.data?.message ?? 'Gagal membuat task. Coba lagi.');
+      setFormError(err?.response?.data?.message ?? 'Gagal menyimpan task. Coba lagi.');
     } finally {
-      setIsAdding(false);
+      setIsSavingTask(false);
     }
   };
 
-  const handleCloseAddModal = () => {
+  const handleDeleteTask = async (task: Task) => {
+    const ok = window.confirm(`Hapus task "${task.title}"?`);
+    if (!ok || isDeletingTask) return;
+
+    setIsDeletingTask(true);
+    try {
+      await removeTask(task.id);
+      setSelectedTask(null);
+      setTaskDetail(null);
+    } catch {
+      setDragError('Gagal menghapus task. Coba lagi.');
+      setTimeout(() => setDragError(null), 3000);
+    } finally {
+      setIsDeletingTask(false);
+    }
+  };
+
+  const handleCloseTaskForm = () => {
     setAddStatus(null);
-    setAddError(null);
+    setEditingTask(null);
+    setFormError(null);
     setTaskForm(createEmptyTaskForm('todo'));
   };
 
@@ -285,12 +349,17 @@ export const KanbanPage: React.FC = () => {
         )}
       </div>
 
-      <Modal open={!!addStatus} onClose={handleCloseAddModal} title="Tambah Task Baru" size="lg">
+      <Modal
+        open={!!addStatus || !!editingTask}
+        onClose={handleCloseTaskForm}
+        title={editingTask ? 'Edit Task' : 'Tambah Task Baru'}
+        size="lg"
+      >
         <form
           className="space-y-4"
           onSubmit={e => {
             e.preventDefault();
-            handleAddTask();
+            handleSaveTask();
           }}
         >
           <div>
@@ -384,7 +453,7 @@ export const KanbanPage: React.FC = () => {
             >
               <option value="">Tidak ada parent</option>
               {tasks
-                .filter(task => !task.parentTaskId)
+                .filter(task => !task.parentTaskId && task.id !== editingTask?.id)
                 .map(task => (
                   <option key={task.id} value={task.id}>{task.title}</option>
                 ))}
@@ -446,13 +515,13 @@ export const KanbanPage: React.FC = () => {
             />
           </div>
 
-          {addError && (
-            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{addError}</p>
+          {formError && (
+            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{formError}</p>
           )}
           <div className="flex gap-2 justify-end">
-            <Button type="button" variant="secondary" onClick={handleCloseAddModal}>Batal</Button>
-            <Button type="submit" loading={isAdding} disabled={!taskForm.title.trim()}>
-              Buat Task
+            <Button type="button" variant="secondary" onClick={handleCloseTaskForm}>Batal</Button>
+            <Button type="submit" loading={isSavingTask} disabled={!taskForm.title.trim()}>
+              {editingTask ? 'Simpan Perubahan' : 'Buat Task'}
             </Button>
           </div>
         </form>
@@ -461,6 +530,20 @@ export const KanbanPage: React.FC = () => {
       <Modal open={!!selectedTask} onClose={() => setSelectedTask(null)} title={selectedTask?.title ?? ''} size="lg">
         {selectedTask && (
           <div className="space-y-5">
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" size="sm" onClick={() => openEditTask(selectedTask)}>
+                Edit
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                loading={isDeletingTask}
+                onClick={() => handleDeleteTask(selectedTask)}
+              >
+                Hapus
+              </Button>
+            </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div><span className="label">Status</span><span className="capitalize">{selectedTask.status.replace('_', ' ')}</span></div>
               <div><span className="label">Prioritas</span><span className="capitalize">{selectedTask.priority}</span></div>
