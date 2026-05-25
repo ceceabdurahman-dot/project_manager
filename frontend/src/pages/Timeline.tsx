@@ -5,8 +5,7 @@ import { id as localeId } from 'date-fns/locale';
 import { useTaskStore } from '../store/taskStore';
 import { useProjectStore } from '../store/projectStore';
 
-const DAY_WIDTH = 40;
-const MAX_TIMELINE_DAYS = 120;
+const DAY_WIDTH = 44;
 
 const parseDate = (value?: string) => {
   if (!value) return null;
@@ -37,8 +36,19 @@ export const Timeline: React.FC = () => {
   const timelineEnd = taskDates.length > 0
     ? max([projectEndDate ?? taskDates[0], ...taskDates])
     : projectEndDate ?? addDays(timelineStart, 29);
-  const totalDays = Math.max(1, Math.min(MAX_TIMELINE_DAYS, differenceInDays(timelineEnd, timelineStart) + 1));
+  const totalDays = Math.max(1, differenceInDays(timelineEnd, timelineStart) + 1);
   const dayHeaders = Array.from({ length: totalDays }, (_, i) => addDays(timelineStart, i));
+  const monthSegments = dayHeaders.reduce<Array<{ key: string; label: string; days: number }>>((segments, date) => {
+    const key = format(date, 'yyyy-MM');
+    const label = format(date, 'MMMM yyyy', { locale: localeId });
+    const lastSegment = segments[segments.length - 1];
+    if (lastSegment?.key === key) {
+      lastSegment.days += 1;
+      return segments;
+    }
+    segments.push({ key, label, days: 1 });
+    return segments;
+  }, []);
 
   const statusColor: Record<string, string> = {
     backlog: 'bg-gray-300',
@@ -57,16 +67,28 @@ export const Timeline: React.FC = () => {
       <div className="flex-1 overflow-auto p-6">
         <div className="card overflow-hidden min-w-max">
           <div className="flex border-b border-gray-200 bg-gray-50">
-            <div className="w-56 shrink-0 px-4 py-2 text-xs font-semibold text-gray-500 border-r border-gray-200">Task</div>
-            <div className="flex overflow-hidden">
+            <div className="w-64 shrink-0 px-4 py-3 text-xs font-semibold text-gray-500 border-r border-gray-200">Task</div>
+            <div>
+              <div className="flex border-b border-gray-200">
+                {monthSegments.map(segment => (
+                  <div
+                    key={segment.key}
+                    className="h-8 border-r border-gray-200 px-2 text-center text-xs font-semibold text-gray-600 leading-8 truncate"
+                    style={{ width: segment.days * DAY_WIDTH }}
+                    title={segment.label}
+                  >
+                    {segment.label}
+                  </div>
+                ))}
+              </div>
+              <div className="flex overflow-hidden">
               {dayHeaders.map((date, i) => (
-                <div key={date.toISOString()} className="w-10 shrink-0 px-1 py-2 text-center border-r border-gray-100">
+                <div key={date.toISOString()} className="shrink-0 px-1 py-2 text-center border-r border-gray-100" style={{ width: DAY_WIDTH }}>
                   <p className="text-xs text-gray-400">{format(date, 'dd')}</p>
-                  {i === 0 || date.getDate() === 1 ? (
-                    <p className="text-xs font-semibold text-gray-600">{format(date, 'MMM', { locale: localeId })}</p>
-                  ) : null}
+                  <p className="text-[10px] leading-3 text-gray-400">{format(date, 'EEE', { locale: localeId })}</p>
                 </div>
               ))}
+              </div>
             </div>
           </div>
 
@@ -88,19 +110,22 @@ export const Timeline: React.FC = () => {
             if (offsetDays >= totalDays || durationDays <= 0) return null;
 
             const color = statusColor[task.status] || 'bg-gray-300';
+            const barWidth = durationDays * DAY_WIDTH - 6;
+            const dateLabel = `${format(start, 'd MMM', { locale: localeId })} - ${format(end, 'd MMM yyyy', { locale: localeId })}`;
             return (
               <div key={task.id} className="flex items-center border-b border-gray-100 hover:bg-gray-50">
-                <div className="w-56 shrink-0 px-4 py-2 border-r border-gray-200">
+                <div className="w-64 shrink-0 px-4 py-2 border-r border-gray-200">
                   <p className="text-sm font-medium text-gray-800 truncate">{task.title}</p>
                   <p className="text-xs text-gray-400 capitalize">{task.status.replace('_', ' ')}</p>
+                  <p className="text-xs text-gray-500 truncate">{dateLabel}</p>
                 </div>
                 <div className="flex items-center relative h-10 overflow-hidden" style={{ width: totalDays * DAY_WIDTH }}>
                   <div
-                    className={`absolute h-6 rounded ${color} opacity-80 flex items-center px-2`}
-                    style={{ left: offsetDays * DAY_WIDTH, width: durationDays * DAY_WIDTH - 4 }}
+                    className={`absolute h-6 rounded ${color} opacity-80 flex items-center overflow-hidden px-2`}
+                    style={{ left: offsetDays * DAY_WIDTH, width: barWidth }}
                     title={`${task.title} (${task.startDate ?? task.dueDate} - ${task.dueDate ?? task.startDate})`}
                   >
-                    <span className="text-white text-xs truncate font-medium">{task.title}</span>
+                    {barWidth >= 88 && <span className="text-white text-xs truncate font-medium">{task.title}</span>}
                   </div>
                 </div>
               </div>
