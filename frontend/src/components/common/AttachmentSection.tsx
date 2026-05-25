@@ -16,13 +16,14 @@ const formatBytes = (bytes: number): string => {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 };
 
-const fileIcon = (mimeType: string): string => {
-  if (mimeType.startsWith('image/'))            return '🖼️';
-  if (mimeType === 'application/pdf')           return '📄';
-  if (mimeType.includes('word'))                return '📝';
-  if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return '📊';
-  if (mimeType === 'application/zip')           return '🗜️';
-  return '📎';
+const fileBadge = (mimeType: string): string => {
+  if (mimeType.startsWith('image/')) return 'IMG';
+  if (mimeType === 'application/pdf') return 'PDF';
+  if (mimeType.includes('word')) return 'DOC';
+  if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'XLS';
+  if (mimeType === 'application/zip') return 'ZIP';
+  if (mimeType === 'text/plain') return 'TXT';
+  return 'FILE';
 };
 
 export const AttachmentSection: React.FC<Props> = ({
@@ -96,7 +97,9 @@ export const AttachmentSection: React.FC<Props> = ({
         <ul className="space-y-2">
           {attachments.map(att => (
             <li key={att.id} className="flex items-center gap-3 group rounded-lg border border-gray-100 px-3 py-2 hover:bg-gray-50 transition-colors">
-              <span className="text-lg shrink-0">{fileIcon(att.mimeType)}</span>
+              <span className="w-10 shrink-0 rounded bg-gray-100 px-1.5 py-1 text-center text-[10px] font-semibold text-gray-500">
+                {fileBadge(att.mimeType)}
+              </span>
               <div className="flex-1 min-w-0">
                 <a
                   href={`/uploads/${att.filename}`}
@@ -110,10 +113,10 @@ export const AttachmentSection: React.FC<Props> = ({
                 </a>
                 <p className="text-xs text-gray-400">
                   {formatBytes(att.size)}
-                  {att.uploader && <span> · oleh {att.uploader.name}</span>}
+                  {att.uploader && <span> - oleh {att.uploader.name}</span>}
                 </p>
               </div>
-              {/* Hapus — hanya pengunggah atau admin */}
+              {/* Hapus hanya untuk pengunggah atau admin. */}
               {(att.uploadedBy === user?.id || user?.role === 'admin') && (
                 <button
                   onClick={() => handleDelete(att.id)}

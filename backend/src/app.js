@@ -43,7 +43,7 @@ app.use(express.static(distPath));
 // ── Static: uploads ───────────────────────────────────────────────────
 // UUID filename = capability URL (hard to guess). Tidak diproteksi JWT agar
 // <a href> dan <img src> bisa berjalan langsung di browser.
-const uploadDir = path.resolve(__dirname, '../../', config.uploadPath);
+const uploadDir = config.uploadDir;
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 app.use('/uploads', express.static(uploadDir));
 
