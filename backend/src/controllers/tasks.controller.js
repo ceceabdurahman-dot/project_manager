@@ -85,8 +85,8 @@ exports.update = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Akses ditolak' });
     }
     const oldStatus = task.status;
-    const { title, description, status, priority, assigneeId, dueDate, startDate, storyPoints, labels, sprintId } = req.body;
-    await task.update({ title, description, status, priority, assigneeId, dueDate, startDate, storyPoints, labels, sprintId });
+    const { title, description, status, priority, assigneeId, dueDate, startDate, storyPoints, position, labels, sprintId, parentTaskId } = req.body;
+    await task.update({ title, description, status, priority, assigneeId, dueDate, startDate, storyPoints, position, labels, sprintId, parentTaskId });
     const full = await Task.findByPk(task.id, { include: taskIncludes() });
     await ActivityLog.create({ projectId: task.projectId, taskId: task.id, userId: req.user.id, action: 'task_updated', metadata: { oldStatus, newStatus: task.status } });
     req.io?.to(`project:${task.projectId}`).emit('task:updated', full);

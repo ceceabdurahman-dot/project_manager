@@ -13,13 +13,28 @@ import { TaskCard } from '../components/kanban/TaskCard';
 import { Modal } from '../components/common/Modal';
 import { Button } from '../components/common/Button';
 import { CommentSection } from '../components/common/CommentSection';
+import { AttachmentSection } from '../components/common/AttachmentSection';
 import { tasksApi } from '../api/tasks.api';
 import { projectsApi } from '../api/projects.api';
 import { onCommentEvent, offCommentEvent } from '../socket/socketManager';
-import type { Task, TaskStatus, TaskPriority, Comment } from '../types';
+import type { Task, TaskStatus, TaskPriority, Comment, Attachment } from '../types';
 
 const COLUMNS: TaskStatus[] = ['backlog', 'todo', 'in_progress', 'review', 'done'];
 const PRIORITIES: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
+
+const upsertComment = (comments: Comment[], comment: Comment): Comment[] => {
+  const exists = comments.some(item => item.id === comment.id);
+  return exists
+    ? comments.map(item => item.id === comment.id ? comment : item)
+    : [...comments, comment];
+};
+
+const upsertAttachment = (attachments: Attachment[], attachment: Attachment): Attachment[] => {
+  const exists = attachments.some(item => item.id === attachment.id);
+  return exists
+    ? attachments.map(item => item.id === attachment.id ? attachment : item)
+    : [...attachments, attachment];
+};
 
 interface ProjectMemberOption {
   id: string;
@@ -88,7 +103,7 @@ export const KanbanPage: React.FC = () => {
       setTaskDetail(prev => {
         if (!prev) return prev;
         if (type === 'added' && data.comment) {
-          return { ...prev, comments: [...(prev.comments || []), data.comment] };
+          return { ...prev, comments: upsertComment(prev.comments || [], data.comment) };
         }
         if (type === 'updated' && data.comment) {
           return { ...prev, comments: (prev.comments || []).map(c => c.id === data.comment!.id ? data.comment! : c) };
@@ -462,28 +477,48 @@ export const KanbanPage: React.FC = () => {
               {detailLoading ? (
                 <div className="flex items-center gap-2 text-sm text-gray-400 py-4">
                   <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  Memuat komentar...
+                  Memuat detail task...
                 </div>
               ) : (
-                <CommentSection
-                  taskId={selectedTask.id}
-                  comments={taskDetail?.comments ?? []}
-                  onCommentAdded={(comment: Comment) => {
-                    setTaskDetail(prev => prev ? { ...prev, comments: [...(prev.comments ?? []), comment] } : prev);
-                  }}
-                  onCommentUpdated={(comment: Comment) => {
-                    setTaskDetail(prev => prev ? {
-                      ...prev,
-                      comments: (prev.comments ?? []).map(c => c.id === comment.id ? comment : c),
-                    } : prev);
-                  }}
-                  onCommentDeleted={(commentId: string) => {
-                    setTaskDetail(prev => prev ? {
-                      ...prev,
-                      comments: (prev.comments ?? []).filter(c => c.id !== commentId),
-                    } : prev);
-                  }}
-                />
+                <div className="space-y-5">
+                  <CommentSection
+                    taskId={selectedTask.id}
+                    comments={taskDetail?.comments ?? []}
+                    onCommentAdded={(comment: Comment) => {
+                      setTaskDetail(prev => prev ? { ...prev, comments: upsertComment(prev.comments ?? [], comment) } : prev);
+                    }}
+                    onCommentUpdated={(comment: Comment) => {
+                      setTaskDetail(prev => prev ? {
+                        ...prev,
+                        comments: (prev.comments ?? []).map(c => c.id === comment.id ? comment : c),
+                      } : prev);
+                    }}
+                    onCommentDeleted={(commentId: string) => {
+                      setTaskDetail(prev => prev ? {
+                        ...prev,
+                        comments: (prev.comments ?? []).filter(c => c.id !== commentId),
+                      } : prev);
+                    }}
+                  />
+                  <div className="border-t border-gray-100 pt-4">
+                    <AttachmentSection
+                      taskId={selectedTask.id}
+                      attachments={taskDetail?.attachments ?? []}
+                      onAttachmentAdded={(attachment: Attachment) => {
+                        setTaskDetail(prev => prev ? {
+                          ...prev,
+                          attachments: upsertAttachment(prev.attachments ?? [], attachment),
+                        } : prev);
+                      }}
+                      onAttachmentDeleted={(attachmentId: string) => {
+                        setTaskDetail(prev => prev ? {
+                          ...prev,
+                          attachments: (prev.attachments ?? []).filter(att => att.id !== attachmentId),
+                        } : prev);
+                      }}
+                    />
+                  </div>
+                </div>
               )}
             </div>
           </div>
