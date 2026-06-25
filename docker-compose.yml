@@ -1,0 +1,45 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      SERVER_HOST: 0.0.0.0
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      AUTH_COOKIE_SECURE: "true"
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://proment.click,https://www.proment.click}
+      DB_PATH: ../data/projectdb.sqlite
+      UPLOAD_PATH: ../uploads
+      BACKUP_PATH: ../backups
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
+      BACKUP_RETAIN_DAYS: ${BACKUP_RETAIN_DAYS:-30}
+    volumes:
+      - proment_data:/app/data
+      - proment_uploads:/app/uploads
+      - proment_backups:/app/backups
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  proment_data:
+  proment_uploads:
+  proment_backups:
+  caddy_data:
+  caddy_config:

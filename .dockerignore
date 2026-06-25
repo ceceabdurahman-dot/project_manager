@@ -1,0 +1,16 @@
+.git
+.agents
+.codex
+.env
+.env.local
+node_modules
+backend/node_modules
+frontend/node_modules
+frontend/dist
+frontend/.vite
+data
+uploads
+backups
+logs
+*.log
+.pm2
