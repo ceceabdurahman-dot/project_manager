@@ -9,7 +9,7 @@
     "dev:frontend": "cd frontend && npm run dev",
     "postinstall": "npm run install:all",
     "build": "cd frontend && npm run build",
-    "start": "cd backend && npm start",
+    "start": "node server.js",
     "setup": "npm run install:all && npm run db:migrate && npm run db:seed",
     "install:all": "cd backend && npm install && cd ../frontend && npm install",
     "db:migrate": "cd backend && npm run db:migrate",
