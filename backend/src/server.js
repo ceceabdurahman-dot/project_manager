@@ -20,11 +20,15 @@ initSocket(io);
 const start = async () => {
   await connectDB();
   startBackupJob();
-  server.listen(config.port, '0.0.0.0', () => {
+  server.listen(config.port, config.host, () => {
     console.log('');
     console.log('🚀 Project Manager Server running!');
     console.log(`   Local:    http://localhost:${config.port}`);
-    console.log(`   Network:  http://<YOUR-IP>:${config.port}`);
+    if (config.host === '0.0.0.0') {
+      console.log(`   Network:  http://<YOUR-IP>:${config.port}`);
+    } else {
+      console.log(`   Host:     ${config.host}`);
+    }
     console.log('');
   });
 };

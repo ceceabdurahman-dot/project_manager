@@ -7,9 +7,10 @@ const uploadPath = process.env.UPLOAD_PATH || 'uploads';
 
 module.exports = {
   port: parseInt(process.env.PORT) || 3000,
+  host: process.env.SERVER_HOST || '127.0.0.1',
   nodeEnv: process.env.NODE_ENV || 'development',
   jwtSecret: process.env.JWT_SECRET || 'dev_secret_change_in_production',
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '8h',
   authCookieName: process.env.AUTH_COOKIE_NAME || 'pm_auth',
   authCookieSecure: process.env.AUTH_COOKIE_SECURE === 'true',
   dbPath: process.env.DB_PATH || '../data/projectdb.sqlite',

@@ -5,12 +5,21 @@ const config = require('../config/config');
 const signToken = (id) =>
   jwt.sign({ id }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
 
+const durationToMs = (value) => {
+  const match = String(value).trim().match(/^(\d+)([smhd])$/i);
+  if (!match) return 8 * 60 * 60 * 1000;
+  const amount = Number(match[1]);
+  const unit = match[2].toLowerCase();
+  const multipliers = { s: 1000, m: 60 * 1000, h: 60 * 60 * 1000, d: 24 * 60 * 60 * 1000 };
+  return amount * multipliers[unit];
+};
+
 const cookieOptions = () => ({
   httpOnly: true,
   sameSite: 'lax',
   secure: config.authCookieSecure,
   path: '/',
-  maxAge: 7 * 24 * 60 * 60 * 1000,
+  maxAge: durationToMs(config.jwtExpiresIn),
 });
 
 // Hanya kirim field yang dibutuhkan frontend — password TIDAK disertakan
