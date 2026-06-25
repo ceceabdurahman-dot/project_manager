@@ -22,6 +22,11 @@ const cookieOptions = () => ({
   maxAge: durationToMs(config.jwtExpiresIn),
 });
 
+const clearCookieOptions = () => {
+  const { maxAge, ...options } = cookieOptions();
+  return options;
+};
+
 // Hanya kirim field yang dibutuhkan frontend — password TIDAK disertakan
 const safeUserData = (user) => {
   const data = user.toJSON ? user.toJSON() : user;
@@ -44,7 +49,7 @@ exports.login = async (req, res, next) => {
 };
 
 exports.logout = async (req, res) => {
-  res.clearCookie(config.authCookieName, cookieOptions());
+  res.clearCookie(config.authCookieName, clearCookieOptions());
   res.json({ success: true, message: 'Logout berhasil' });
 };
 
