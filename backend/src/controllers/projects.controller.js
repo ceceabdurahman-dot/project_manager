@@ -113,8 +113,17 @@ exports.getAvailableUsers = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Akses ditolak' });
     }
 
+    const members = await ProjectMember.findAll({
+      where: { projectId: req.params.id },
+      attributes: ['userId'],
+    });
+    const memberIds = members.map(member => member.userId);
+
     const users = await User.findAll({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(memberIds.length > 0 && { id: { [Op.notIn]: memberIds } }),
+      },
       attributes: ['id', 'name', 'email', 'role', 'avatar', 'isActive'],
       order: [['name', 'ASC']],
     });
