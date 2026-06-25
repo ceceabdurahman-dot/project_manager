@@ -1,14 +1,14 @@
 services:
   app:
     build:
-      context: .
+      context: https://github.com/ceceabdurahman-dot/project_manager.git#master
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
       NODE_ENV: production
       PORT: 3000
       SERVER_HOST: 0.0.0.0
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      JWT_SECRET: ${JWT_SECRET:-change_this_jwt_secret_in_hostinger_docker_env_32_chars_min}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
       AUTH_COOKIE_SECURE: "true"
       CORS_ORIGINS: ${CORS_ORIGINS:-https://proment.click,https://www.proment.click}
@@ -32,8 +32,10 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    command: >
+      sh -c "printf '%s\n' 'proment.click, www.proment.click {' '  reverse_proxy app:3000' '}' > /etc/caddy/Caddyfile
+      && caddy run --config /etc/caddy/Caddyfile --adapter caddyfile"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
 
