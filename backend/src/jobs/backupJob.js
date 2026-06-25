@@ -28,7 +28,7 @@ const runBackup = () => {
 };
 
 const startBackupJob = () => {
-  cron.schedule('0 2 * * *', runBackup); // Setiap hari pukul 02.00
+  cron.schedule('0 2 * * *', runBackup, { noOverlap: true }); // Setiap hari pukul 02.00
   console.log('⏰ Backup job aktif (setiap hari 02:00)');
 };
 
