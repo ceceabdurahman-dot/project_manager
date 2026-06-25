@@ -10,6 +10,7 @@ import { KanbanPage }from './pages/KanbanPage';
 import { Timeline }  from './pages/Timeline';
 import { Reports }   from './pages/Reports';
 import { Settings }  from './pages/Settings';
+import { AdminUsers } from './pages/AdminUsers';
 
 // ── Protected wrapper ─────────────────────────────────────────────────
 const Protected: React.FC = () => {
@@ -44,6 +45,7 @@ export default function App() {
         <Route element={<Protected />}>
           <Route path="/"                                  element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard"                         element={<Dashboard />} />
+          <Route path="/admin/users"                        element={<AdminUsers />} />
           <Route path="/projects"                          element={<Projects />} />
           <Route path="/projects/:projectId/kanban"        element={<KanbanPage />} />
           <Route path="/projects/:projectId/timeline"      element={<Timeline />} />
