@@ -48,8 +48,10 @@ app.use((req, res, next) => {
   res.setHeader('X-XSS-Protection', '1; mode=block');       // XSS filter browser lama
   res.setHeader('Referrer-Policy', 'no-referrer');           // Jangan kirim Referer header
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-  // Report-only dulu agar bisa memantau pelanggaran tanpa memblokir fitur.
-  res.setHeader('Content-Security-Policy-Report-Only', buildCsp());
+  const cspHeader = config.nodeEnv === 'production'
+    ? 'Content-Security-Policy'
+    : 'Content-Security-Policy-Report-Only';
+  res.setHeader(cspHeader, buildCsp());
   next();
 });
 
