@@ -10,6 +10,35 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
+const toWsOrigin = (origin) => origin.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
+
+const buildCsp = () => {
+  const isProd = config.nodeEnv === 'production';
+  const httpOrigins = new Set(['http://localhost:3005', 'http://localhost:5175', ...config.corsOrigins]);
+  const wsOrigins = new Set([...httpOrigins].map(toWsOrigin));
+
+  const directives = {
+    'default-src': ["'self'"],
+    'base-uri': ["'self'"],
+    'object-src': ["'none'"],
+    'frame-ancestors': ["'none'"],
+    'script-src': isProd ? ["'self'"] : ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+    'style-src': ["'self'", "'unsafe-inline'"],
+    'img-src': ["'self'", 'data:', 'blob:'],
+    'font-src': ["'self'", 'data:'],
+    'connect-src': ["'self'", ...httpOrigins, ...wsOrigins],
+    'media-src': ["'self'", 'blob:'],
+    'worker-src': ["'self'", 'blob:'],
+    'form-action': ["'self'"],
+  };
+
+  if (isProd) directives['upgrade-insecure-requests'] = [];
+
+  return Object.entries(directives)
+    .map(([name, values]) => [name, ...values].join(' '))
+    .join('; ');
+};
+
 // ── Security Headers ──────────────────────────────────────────────────
 // Catatan: pasang 'helmet' npm package untuk konfigurasi yang lebih lengkap
 // (npm install helmet di folder backend, lalu: const helmet = require('helmet'); app.use(helmet()))
@@ -19,8 +48,8 @@ app.use((req, res, next) => {
   res.setHeader('X-XSS-Protection', '1; mode=block');       // XSS filter browser lama
   res.setHeader('Referrer-Policy', 'no-referrer');           // Jangan kirim Referer header
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-  // Hanya izinkan konten dari origin sendiri (aman untuk SPA + API di server yang sama)
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;");
+  // Report-only dulu agar bisa memantau pelanggaran tanpa memblokir fitur.
+  res.setHeader('Content-Security-Policy-Report-Only', buildCsp());
   next();
 });
 
@@ -40,12 +69,13 @@ app.use('/api/', limiter);
 const distPath = path.resolve(__dirname, '../../frontend/dist');
 app.use(express.static(distPath));
 
-// ── Static: uploads ───────────────────────────────────────────────────
-// UUID filename = capability URL (hard to guess). Tidak diproteksi JWT agar
-// <a href> dan <img src> bisa berjalan langsung di browser.
+// ── Uploads ───────────────────────────────────────────────────────────
+// File attachment harus diakses lewat endpoint terautentikasi, bukan static URL.
 const uploadDir = config.uploadDir;
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-app.use('/uploads', express.static(uploadDir));
+app.use('/uploads', (req, res) => {
+  res.status(404).json({ success: false, message: 'Gunakan endpoint attachment terautentikasi' });
+});
 
 // Inject io ke req (di-set dari server.js)
 app.use((req, res, next) => { req.io = app.get('io'); next(); });

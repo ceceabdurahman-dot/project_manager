@@ -9,9 +9,9 @@ export default defineConfig({
     port: 5175,
     strictPort: true,
     proxy: {
-      '/api': { target: 'http://127.0.0.1:3000', changeOrigin: true },
-      '/uploads': { target: 'http://127.0.0.1:3000', changeOrigin: true },
-      '/socket.io': { target: 'http://127.0.0.1:3000', ws: true },
+      '/api': { target: 'http://127.0.0.1:3005', changeOrigin: true },
+      '/uploads': { target: 'http://127.0.0.1:3005', changeOrigin: true },
+      '/socket.io': { target: 'http://127.0.0.1:3005', ws: true },
     },
   },
   build: { outDir: 'dist', sourcemap: false },

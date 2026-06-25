@@ -106,6 +106,22 @@ exports.getMembers = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.getAvailableUsers = async (req, res, next) => {
+  try {
+    const membership = await getMembership(req.params.id, req.user.id);
+    if (!membership || !['owner', 'admin'].includes(membership.role)) {
+      return res.status(403).json({ success: false, message: 'Akses ditolak' });
+    }
+
+    const users = await User.findAll({
+      where: { isActive: true },
+      attributes: ['id', 'name', 'email', 'role', 'avatar', 'isActive'],
+      order: [['name', 'ASC']],
+    });
+    res.json({ success: true, users });
+  } catch (err) { next(err); }
+};
+
 exports.addMember = async (req, res, next) => {
   try {
     const membership = await getMembership(req.params.id, req.user.id);

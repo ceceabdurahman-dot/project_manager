@@ -8,6 +8,7 @@ import { id as localeId } from 'date-fns/locale';
 
 interface Props {
   projectId: string;
+  canManage?: boolean;
 }
 
 const statusLabels: Record<string, { text: string; color: string }> = {
@@ -16,7 +17,7 @@ const statusLabels: Record<string, { text: string; color: string }> = {
   completed: { text: 'Selesai',   color: 'bg-blue-100 text-blue-700' },
 };
 
-export const SprintPanel: React.FC<Props> = ({ projectId }) => {
+export const SprintPanel: React.FC<Props> = ({ projectId, canManage = true }) => {
   const { sprints, isLoading, fetchAll, create, update, remove, start, complete } = useSprintStore();
   const [showForm, setShowForm] = useState(false);
   const [editingSprint, setEditingSprint] = useState<SprintWithStats | null>(null);
@@ -128,13 +129,21 @@ export const SprintPanel: React.FC<Props> = ({ projectId }) => {
           <h2 className="font-semibold text-gray-900">Sprint</h2>
           <span className="text-xs text-gray-400">({sprints.length})</span>
         </div>
-        <Button size="sm" onClick={openCreate}>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Sprint Baru
-        </Button>
+        {canManage && (
+          <Button size="sm" onClick={openCreate}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Sprint Baru
+          </Button>
+        )}
       </div>
+
+      {!canManage && (
+        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
+          Hanya owner atau admin proyek yang bisa membuat, mengubah, memulai, menyelesaikan, atau menghapus sprint.
+        </p>
+      )}
 
       {/* Action message */}
       {actionMsg && (
@@ -185,7 +194,7 @@ export const SprintPanel: React.FC<Props> = ({ projectId }) => {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-1 shrink-0">
+                  {canManage && <div className="flex items-center gap-1 shrink-0">
                     {sprint.status === 'planning' && (
                       <button onClick={() => handleStart(sprint)} className="text-xs text-green-600 hover:text-green-700 px-2 py-1 hover:bg-green-50 rounded transition-colors" title="Mulai Sprint">
                         ▶ Mulai
@@ -204,7 +213,7 @@ export const SprintPanel: React.FC<Props> = ({ projectId }) => {
                     <button onClick={() => handleDelete(sprint)} className="text-xs text-gray-400 hover:text-red-500 px-2 py-1 hover:bg-red-50 rounded transition-colors">
                       Hapus
                     </button>
-                  </div>
+                  </div>}
                 </div>
 
                 {/* Progress bar */}

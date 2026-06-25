@@ -86,6 +86,7 @@ router.post(
   }),
   c.uploadAttachment,
 );
+router.get('/tasks/:id/attachments/:attachmentId/download', authenticate, c.downloadAttachment);
 router.delete('/tasks/:id/attachments/:attachmentId', authenticate, c.deleteAttachment);
 
 module.exports = router;

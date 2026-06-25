@@ -1,6 +1,8 @@
 const fs = require('fs');
-const { Task, User, Comment, Attachment, ActivityLog, ProjectMember } = require('../models');
+const path = require('path');
+const { Task, User, Comment, Attachment, ActivityLog, ProjectMember, Sprint } = require('../models');
 const { Op } = require('sequelize');
+const config = require('../config/config');
 
 const taskIncludes = () => [
   { model: User, as: 'assignee', attributes: ['id','name','avatar'] },
@@ -14,6 +16,40 @@ const isMember = async (projectId, userId) => {
 
 const VALID_STATUSES   = ['backlog', 'todo', 'in_progress', 'review', 'done'];
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
+
+const validateTaskReferences = async ({ projectId, assigneeId, sprintId, parentTaskId, currentTaskId }) => {
+  if (assigneeId) {
+    const assigneeMembership = await ProjectMember.findOne({ where: { projectId, userId: assigneeId } });
+    if (!assigneeMembership) {
+      const err = new Error('Assignee harus anggota proyek yang sama');
+      err.status = 400;
+      throw err;
+    }
+  }
+
+  if (sprintId) {
+    const sprint = await Sprint.findByPk(sprintId);
+    if (!sprint || sprint.projectId !== projectId) {
+      const err = new Error('Sprint harus berada di proyek yang sama');
+      err.status = 400;
+      throw err;
+    }
+  }
+
+  if (parentTaskId) {
+    if (currentTaskId && parentTaskId === currentTaskId) {
+      const err = new Error('Task tidak bisa menjadi parent untuk dirinya sendiri');
+      err.status = 400;
+      throw err;
+    }
+    const parent = await Task.findByPk(parentTaskId);
+    if (!parent || parent.projectId !== projectId) {
+      const err = new Error('Parent task harus berada di proyek yang sama');
+      err.status = 400;
+      throw err;
+    }
+  }
+};
 
 exports.getAll = async (req, res, next) => {
   try {
@@ -47,6 +83,7 @@ exports.create = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Akses ditolak' });
     }
     const { title, description, status, priority, assigneeId, dueDate, startDate, storyPoints, position, labels, sprintId, parentTaskId } = req.body;
+    await validateTaskReferences({ projectId: req.params.id, assigneeId, sprintId, parentTaskId });
     const task = await Task.create({
       title, description, status, priority, assigneeId, dueDate, startDate,
       storyPoints, position, labels, sprintId, parentTaskId,
@@ -86,6 +123,13 @@ exports.update = async (req, res, next) => {
     }
     const oldStatus = task.status;
     const { title, description, status, priority, assigneeId, dueDate, startDate, storyPoints, position, labels, sprintId, parentTaskId } = req.body;
+    await validateTaskReferences({
+      projectId: task.projectId,
+      assigneeId,
+      sprintId,
+      parentTaskId,
+      currentTaskId: task.id,
+    });
     await task.update({ title, description, status, priority, assigneeId, dueDate, startDate, storyPoints, position, labels, sprintId, parentTaskId });
     const full = await Task.findByPk(task.id, { include: taskIncludes() });
     await ActivityLog.create({ projectId: task.projectId, taskId: task.id, userId: req.user.id, action: 'task_updated', metadata: { oldStatus, newStatus: task.status } });
@@ -231,5 +275,32 @@ exports.deleteAttachment = async (req, res, next) => {
     fs.unlink(filePath, (err) => { if (err) console.error('Gagal menghapus file dari disk:', filePath, err.message); });
     req.io?.to(`project:${task.projectId}`).emit('attachment:deleted', { taskId, attachmentId });
     res.json({ success: true, message: 'Lampiran dihapus' });
+  } catch (err) { next(err); }
+};
+
+exports.downloadAttachment = async (req, res, next) => {
+  try {
+    const attachment = await Attachment.findByPk(req.params.attachmentId);
+    if (!attachment || attachment.taskId !== req.params.id) {
+      return res.status(404).json({ success: false, message: 'Lampiran tidak ditemukan' });
+    }
+
+    const task = await Task.findByPk(attachment.taskId);
+    if (!task) return res.status(404).json({ success: false, message: 'Task tidak ditemukan' });
+
+    if (!(await isMember(task.projectId, req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Akses ditolak' });
+    }
+
+    const uploadRoot = path.resolve(config.uploadDir);
+    const filePath = path.resolve(attachment.path);
+    if (!filePath.startsWith(uploadRoot + path.sep)) {
+      return res.status(400).json({ success: false, message: 'Path lampiran tidak valid' });
+    }
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, message: 'File lampiran tidak ditemukan di server' });
+    }
+
+    res.download(filePath, attachment.originalName);
   } catch (err) { next(err); }
 };

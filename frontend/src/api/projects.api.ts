@@ -8,6 +8,7 @@ export const projectsApi = {
   update:       (id: string, data: Partial<Project>) => api.put<{ success: boolean; project: Project }>(`/projects/${id}`, data),
   remove:       (id: string) => api.delete(`/projects/${id}`),
   getMembers:       (id: string) => api.get<{ success: boolean; members: any[] }>(`/projects/${id}/members`),
+  getAvailableUsers: (id: string) => api.get<{ success: boolean; users: any[] }>(`/projects/${id}/available-users`),
   addMember:        (id: string, userId: string, role: string) => api.post<{ success: boolean; member: any }>(`/projects/${id}/members`, { userId, role }),
   updateMemberRole: (id: string, userId: string, role: string) => api.put<{ success: boolean; member: any }>(`/projects/${id}/members/${userId}`, { role }),
   removeMember:     (id: string, userId: string) => api.delete<{ success: boolean; message: string }>(`/projects/${id}/members/${userId}`),

@@ -31,6 +31,8 @@ export const tasksApi = {
       { headers: { 'Content-Type': 'multipart/form-data' } },
     );
   },
+  downloadAttachment: (taskId: string, attachmentId: string) =>
+    api.get<Blob>(`/tasks/${taskId}/attachments/${attachmentId}/download`, { responseType: 'blob' }),
   deleteAttachment: (taskId: string, attachmentId: string) =>
     api.delete<{ success: boolean; message: string }>(`/tasks/${taskId}/attachments/${attachmentId}`),
 };

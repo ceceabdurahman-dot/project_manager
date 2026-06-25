@@ -61,6 +61,23 @@ export const AttachmentSection: React.FC<Props> = ({
     }
   };
 
+  const handleDownload = async (attachment: Attachment) => {
+    setError('');
+    try {
+      const { data } = await tasksApi.downloadAttachment(taskId, attachment.id);
+      const url = window.URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = attachment.originalName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Gagal mengunduh lampiran');
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -101,16 +118,14 @@ export const AttachmentSection: React.FC<Props> = ({
                 {fileBadge(att.mimeType)}
               </span>
               <div className="flex-1 min-w-0">
-                <a
-                  href={`/uploads/${att.filename}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download={att.originalName}
-                  className="text-sm text-primary hover:underline truncate block"
+                <button
+                  type="button"
+                  onClick={() => handleDownload(att)}
+                  className="text-sm text-primary hover:underline truncate block text-left w-full"
                   title={att.originalName}
                 >
                   {att.originalName}
-                </a>
+                </button>
                 <p className="text-xs text-gray-400">
                   {formatBytes(att.size)}
                   {att.uploader && <span> - oleh {att.uploader.name}</span>}

@@ -5,16 +5,22 @@ import { Button } from '../components/common/Button';
 import { SprintPanel } from '../components/common/SprintPanel';
 import { MemberPanel } from '../components/common/MemberPanel';
 import { authApi } from '../api/auth.api';
+import { projectsApi } from '../api/projects.api';
+import { useAuthStore } from '../store/authStore';
 
 type ProjectStatus = 'active' | 'completed' | 'archived';
 
 export const Settings: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { current, fetchOne, update } = useProjectStore();
+  const currentUser = useAuthStore(s => s.user);
   const [form, setForm] = useState<{ name: string; description: string; status: ProjectStatus }>({
     name: '', description: '', status: 'active',
   });
   const [saved, setSaved] = useState(false);
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const [projectLoading, setProjectLoading] = useState(false);
+  const [myProjectRole, setMyProjectRole] = useState<string | null>(null);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -26,10 +32,14 @@ export const Settings: React.FC = () => {
 
   useEffect(() => {
     if (!projectId) return;
-    fetchOne(projectId).then(() => {
-      if (current) setForm({ name: current.name, description: current.description ?? '', status: current.status });
-    });
-  }, [projectId]);
+    fetchOne(projectId);
+    projectsApi.getMembers(projectId)
+      .then(({ data }) => {
+        const member = data.members.find(m => m.User.id === currentUser?.id);
+        setMyProjectRole(member?.role ?? null);
+      })
+      .catch(() => setMyProjectRole(null));
+  }, [projectId, fetchOne, currentUser?.id]);
 
   useEffect(() => {
     if (current) setForm({ name: current.name, description: current.description ?? '', status: current.status });
@@ -38,9 +48,23 @@ export const Settings: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectId) return;
-    await update(projectId, form);
-    setSaved(true); setTimeout(() => setSaved(false), 2000);
+    if (!canManageProject) {
+      setProjectError('Hanya owner atau admin proyek yang bisa mengubah pengaturan proyek.');
+      return;
+    }
+    setProjectError(null);
+    setProjectLoading(true);
+    try {
+      await update(projectId, form);
+      setSaved(true); setTimeout(() => setSaved(false), 2000);
+    } catch (err: any) {
+      setProjectError(err?.response?.data?.message ?? 'Gagal menyimpan pengaturan proyek');
+    } finally {
+      setProjectLoading(false);
+    }
   };
+
+  const canManageProject = myProjectRole === 'owner' || myProjectRole === 'admin';
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,27 +96,39 @@ export const Settings: React.FC = () => {
     <div className="p-6 max-w-2xl space-y-6">
       <h1 className="text-lg font-bold text-gray-900">Pengaturan Proyek</h1>
       <form onSubmit={handleSave} className="card p-6 space-y-4">
+        {!canManageProject && (
+          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
+            Anda bisa melihat pengaturan proyek, tetapi hanya owner atau admin proyek yang bisa mengubahnya.
+          </p>
+        )}
         <div>
           <label className="label">Nama Proyek</label>
           <input className="input" value={form.name}
-            onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            disabled={!canManageProject || projectLoading}
+            required />
         </div>
         <div>
           <label className="label">Deskripsi</label>
           <textarea className="input resize-none" rows={3} value={form.description}
-            onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+            disabled={!canManageProject || projectLoading} />
         </div>
         <div>
           <label className="label">Status</label>
           <select className="input" value={form.status}
-            onChange={e => setForm(f => ({ ...f, status: e.target.value as ProjectStatus }))}>
+            onChange={e => setForm(f => ({ ...f, status: e.target.value as ProjectStatus }))}
+            disabled={!canManageProject || projectLoading}>
             <option value="active">Active</option>
             <option value="completed">Completed</option>
             <option value="archived">Archived</option>
           </select>
         </div>
+        {projectError && (
+          <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{projectError}</p>
+        )}
         <div className="flex items-center gap-3 pt-2">
-          <Button type="submit">Simpan Perubahan</Button>
+          <Button type="submit" loading={projectLoading} disabled={!canManageProject}>Simpan Perubahan</Button>
           {saved && <span className="text-sm text-green-600">Tersimpan</span>}
         </div>
       </form>
@@ -155,7 +191,7 @@ export const Settings: React.FC = () => {
       {/* Sprint Management */}
       {projectId && (
         <div className="card p-6">
-          <SprintPanel projectId={projectId} />
+          <SprintPanel projectId={projectId} canManage={canManageProject} />
         </div>
       )}
     </div>

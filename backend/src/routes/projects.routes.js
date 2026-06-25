@@ -44,6 +44,7 @@ router.use(authenticate);
 
 router.get('/',               c.getAll);
 router.post('/',              ...projectValidation, c.create);
+router.get('/:id/available-users', c.getAvailableUsers);
 router.get('/:id',            c.getOne);
 router.put('/:id',            ...projectValidation, c.update);
 router.delete('/:id',         c.remove);

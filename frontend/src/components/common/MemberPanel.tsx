@@ -54,11 +54,12 @@ export const MemberPanel: React.FC<Props> = ({ projectId }) => {
     setAddUserId('');
     setAddRole('member');
     try {
-      // Fetch semua user untuk dropdown
-      const api = (await import('../../api/axios')).default;
-      const { data } = await api.get<{ success: boolean; users: User[] }>('/auth/users');
+      const { data } = await projectsApi.getAvailableUsers(projectId);
       setAllUsers(data.users);
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Gagal memuat daftar user');
+      setAllUsers([]);
+    }
     setShowAdd(true);
   };
 
