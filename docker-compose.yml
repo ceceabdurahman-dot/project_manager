@@ -1,8 +1,7 @@
 services:
   app:
-    build:
-      context: https://github.com/ceceabdurahman-dot/project_manager.git#master
-      dockerfile: Dockerfile
+    image: ghcr.io/ceceabdurahman-dot/project_manager:latest
+    pull_policy: always
     restart: unless-stopped
     environment:
       NODE_ENV: production
