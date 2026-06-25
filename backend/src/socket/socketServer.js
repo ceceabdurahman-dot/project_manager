@@ -1,11 +1,13 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
 const { ProjectMember, User } = require('../models');
+const { parseCookies } = require('../middleware/auth');
 
 const initSocket = (io) => {
   // ── Autentikasi WebSocket ─────────────────────────────────────────
   io.use(async (socket, next) => {
-    const token = socket.handshake.auth.token;
+    const cookies = parseCookies(socket.handshake.headers.cookie);
+    const token = cookies[config.authCookieName] || socket.handshake.auth.token;
     if (!token) return next(new Error('Autentikasi diperlukan'));
     try {
       const decoded = jwt.verify(token, config.jwtSecret);

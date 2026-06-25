@@ -3,7 +3,10 @@ import type { User } from '../types';
 
 export const authApi = {
   login:  (email: string, password: string) =>
-    api.post<{ success: boolean; token: string; user: User }>('/auth/login', { email, password }),
+    api.post<{ success: boolean; user: User }>('/auth/login', { email, password }),
+
+  logout: () =>
+    api.post<{ success: boolean; message: string }>('/auth/logout'),
 
   getMe:  () =>
     api.get<{ success: boolean; user: User }>('/auth/me'),

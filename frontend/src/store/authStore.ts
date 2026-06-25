@@ -3,41 +3,45 @@ import type { User } from '../types';
 import { authApi } from '../api/auth.api';
 
 interface AuthState {
-  user: User | null; token: string | null; isLoading: boolean;
+  user: User | null; isLoading: boolean; hasCheckedSession: boolean;
   login:  (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   fetchMe: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user:  null,
-  token: localStorage.getItem('token'),
   isLoading: false,
+  hasCheckedSession: false,
 
   login: async (email, password) => {
     set({ isLoading: true });
     try {
       const { data } = await authApi.login(email, password);
-      localStorage.setItem('token', data.token);
-      set({ user: data.user, token: data.token });
+      set({ user: data.user, hasCheckedSession: true });
     } finally {
       set({ isLoading: false });
     }
   },
 
-  logout: () => {
-    localStorage.removeItem('token');
-    set({ user: null, token: null });
+  logout: async () => {
+    try {
+      await authApi.logout();
+    } finally {
+      set({ user: null, hasCheckedSession: true });
+    }
     window.location.href = '/login';
   },
 
   fetchMe: async () => {
+    set({ isLoading: true });
     try {
       const { data } = await authApi.getMe();
-      set({ user: data.user });
+      set({ user: data.user, hasCheckedSession: true });
     } catch {
-      localStorage.removeItem('token');
-      set({ user: null, token: null });
+      set({ user: null, hasCheckedSession: true });
+    } finally {
+      set({ isLoading: false });
     }
   },
 }));

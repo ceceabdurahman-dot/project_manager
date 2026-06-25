@@ -1,6 +1,6 @@
 const router    = require('express').Router();
 const rateLimit = require('express-rate-limit');
-const { login, getMe, updateProfile, createUser, getUsers, resetPassword, toggleActive } = require('../controllers/auth.controller');
+const { login, logout, getMe, updateProfile, createUser, getUsers, resetPassword, toggleActive } = require('../controllers/auth.controller');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 
@@ -32,6 +32,7 @@ router.post('/login',
 );
 
 router.get('/me', authenticate, getMe);
+router.post('/logout', logout);
 
 router.put('/profile',
   authenticate,

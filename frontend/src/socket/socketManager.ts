@@ -20,11 +20,11 @@ const notifyCommentListeners = (
   data: { taskId: string; comment?: Comment; commentId?: string }
 ) => { commentListeners.forEach(l => l(type, data)); };
 
-export const connectSocket = (token: string): Socket => {
+export const connectSocket = (): Socket => {
   if (socket?.connected) return socket;
 
   socket = io('/', {
-    auth: { token },
+    withCredentials: true,
     transports: ['websocket', 'polling'],
     reconnectionAttempts: 5,
   });

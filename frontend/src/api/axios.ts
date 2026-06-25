@@ -3,13 +3,8 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: '/api/v1',
   timeout: 10000,
+  withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
 });
 
 api.interceptors.response.use(
@@ -19,7 +14,6 @@ api.interceptors.response.use(
     // Jangan redirect jika error berasal dari request login itu sendiri
     // (agar pesan error tetap muncul di form login)
     if (err.response?.status === 401 && !isLoginRequest) {
-      localStorage.removeItem('token');
       window.location.href = '/login';
     }
     return Promise.reject(err);

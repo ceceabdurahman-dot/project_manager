@@ -5,6 +5,14 @@ const config = require('../config/config');
 const signToken = (id) =>
   jwt.sign({ id }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
 
+const cookieOptions = () => ({
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: config.authCookieSecure,
+  path: '/',
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+});
+
 // Hanya kirim field yang dibutuhkan frontend — password TIDAK disertakan
 const safeUserData = (user) => {
   const data = user.toJSON ? user.toJSON() : user;
@@ -21,8 +29,14 @@ exports.login = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Email atau password salah' });
     }
     const token = signToken(user.id);
-    res.json({ success: true, token, user: safeUserData(user) });
+    res.cookie(config.authCookieName, token, cookieOptions());
+    res.json({ success: true, user: safeUserData(user) });
   } catch (err) { next(err); }
+};
+
+exports.logout = async (req, res) => {
+  res.clearCookie(config.authCookieName, cookieOptions());
+  res.json({ success: true, message: 'Logout berhasil' });
 };
 
 exports.getMe = async (req, res) => {

@@ -2,13 +2,29 @@ const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 const config = require('../config/config');
 
+const parseCookies = (cookieHeader = '') =>
+  cookieHeader.split(';').reduce((cookies, part) => {
+    const [rawName, ...rawValue] = part.trim().split('=');
+    if (!rawName) return cookies;
+    cookies[rawName] = decodeURIComponent(rawValue.join('='));
+    return cookies;
+  }, {});
+
+const getRequestToken = (req) => {
+  const cookies = parseCookies(req.headers.cookie);
+  if (cookies[config.authCookieName]) return cookies[config.authCookieName];
+
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) return authHeader.split(' ')[1];
+  return null;
+};
+
 const authenticate = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer '))
+    const token = getRequestToken(req);
+    if (!token)
       return res.status(401).json({ success: false, message: 'Token tidak ditemukan' });
 
-    const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, config.jwtSecret);
     const user = await User.findByPk(decoded.id);
     if (!user || !user.isActive)
@@ -27,4 +43,4 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-module.exports = { authenticate, requireAdmin };
+module.exports = { authenticate, requireAdmin, parseCookies };

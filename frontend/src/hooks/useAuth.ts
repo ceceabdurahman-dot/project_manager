@@ -3,12 +3,15 @@ import { useAuthStore } from '../store/authStore';
 import { connectSocket } from '../socket/socketManager';
 
 export const useInitAuth = () => {
-  const { token, user, fetchMe } = useAuthStore();
+  const { user, fetchMe, hasCheckedSession, isLoading } = useAuthStore();
 
   useEffect(() => {
-    if (token && !user) fetchMe();
-    if (token) connectSocket(token);
-  }, [token]);
+    if (!hasCheckedSession) fetchMe();
+  }, [hasCheckedSession, fetchMe]);
 
-  return { token, user };
+  useEffect(() => {
+    if (user) connectSocket();
+  }, [user]);
+
+  return { user, isLoading, hasCheckedSession };
 };

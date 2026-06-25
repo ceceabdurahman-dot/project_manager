@@ -13,17 +13,17 @@ import { Settings }  from './pages/Settings';
 
 // ── Protected wrapper ─────────────────────────────────────────────────
 const Protected: React.FC = () => {
-  const { token, user } = useInitAuth();
+  const { user, isLoading, hasCheckedSession } = useInitAuth();
   const { fetchAll } = useProjectStore();
 
-  useEffect(() => { if (token) fetchAll(); }, [token, fetchAll]);
+  useEffect(() => { if (user) fetchAll(); }, [user, fetchAll]);
 
-  if (!token) return <Navigate to="/login" replace />;
-  if (!user)  return (
+  if (!hasCheckedSession || isLoading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
+  if (!user) return <Navigate to="/login" replace />;
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
