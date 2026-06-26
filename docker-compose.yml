@@ -11,15 +11,25 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
       AUTH_COOKIE_SECURE: "true"
       CORS_ORIGINS: ${CORS_ORIGINS:-https://proment.click,https://www.proment.click}
-      DB_PATH: ../data/projectdb.sqlite
-      UPLOAD_PATH: ../uploads
-      BACKUP_PATH: ../backups
+      # Path absolut agar cocok dengan mount Docker volume di bawah.
+      # PENTING: DB/uploads/backups HARUS di luar /app/source, karena folder itu
+      # dihapus & di-clone ulang setiap deploy. Kalau di dalam, data hilang tiap deploy.
+      DB_PATH: /app/data/projectdb.sqlite
+      UPLOAD_PATH: /app/uploads
+      BACKUP_PATH: /app/backups
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
       BACKUP_RETAIN_DAYS: ${BACKUP_RETAIN_DAYS:-30}
+      # Auto-seed akun penting saat container start (idempotent).
+      # Set nilai asli lewat .env di server; default di bawah hanya fallback.
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin123}
+      SEED_CECE_PASSWORD: ${SEED_CECE_PASSWORD:-member123}
+      SEED_ASEP_PASSWORD: ${SEED_ASEP_PASSWORD:-password1234}
+      # Set "true" sekali kalau ingin paksa reset password akun seed ke nilai di atas.
+      SEED_RESET_PASSWORDS: ${SEED_RESET_PASSWORDS:-false}
     command:
       - sh
       - -lc
-      - apt-get update && apt-get install -y --no-install-recommends git ca-certificates python3 make g++ && rm -rf /var/lib/apt/lists/* && rm -rf /app/source && git clone --depth=1 --branch master https://github.com/ceceabdurahman-dot/project_manager.git /app/source && cd /app/source/backend && npm_config_build_from_source=true npm ci --omit=dev && npm rebuild sqlite3 --build-from-source && cd /app/source/frontend && npm ci --include=dev && npm run build && cd /app/source && npm start
+      - apt-get update && apt-get install -y --no-install-recommends git ca-certificates python3 make g++ && rm -rf /var/lib/apt/lists/* && rm -rf /app/source && git clone --depth=1 --branch master https://github.com/ceceabdurahman-dot/project_manager.git /app/source && cd /app/source/backend && npm_config_build_from_source=true npm ci --omit=dev && npm rebuild sqlite3 --build-from-source && cd /app/source/frontend && npm ci --include=dev && npm run build && cd /app/source/backend && node scripts/seed-prod.js && cd /app/source && npm start
     volumes:
       - proment_data:/app/data
       - proment_uploads:/app/uploads
