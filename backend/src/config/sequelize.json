@@ -1,4 +1,14 @@
 {
-  "development": { "dialect": "sqlite", "storage": "../data/projectdb.sqlite" },
-  "production":  { "dialect": "sqlite", "storage": "../data/projectdb.sqlite" }
+  "development": {
+    "dialect": "sqlite",
+    "storage": "../data/projectdb.sqlite",
+    "seederStorage": "sequelize",
+    "seederStorageTableName": "SequelizeData"
+  },
+  "production": {
+    "dialect": "sqlite",
+    "storage": "../data/projectdb.sqlite",
+    "seederStorage": "sequelize",
+    "seederStorageTableName": "SequelizeData"
+  }
 }
