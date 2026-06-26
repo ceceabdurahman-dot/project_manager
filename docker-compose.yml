@@ -19,7 +19,7 @@ services:
     command:
       - sh
       - -lc
-      - apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/* && rm -rf /app/source && git clone --depth=1 --branch master https://github.com/ceceabdurahman-dot/project_manager.git /app/source && cd /app/source/backend && npm ci --omit=dev && cd /app/source/frontend && npm ci --include=dev && npm run build && cd /app/source && npm start
+      - apt-get update && apt-get install -y --no-install-recommends git ca-certificates python3 make g++ && rm -rf /var/lib/apt/lists/* && rm -rf /app/source && git clone --depth=1 --branch master https://github.com/ceceabdurahman-dot/project_manager.git /app/source && cd /app/source/backend && npm ci --omit=dev --build-from-source=sqlite3 && cd /app/source/frontend && npm ci --include=dev && npm run build && cd /app/source && npm start
     volumes:
       - proment_data:/app/data
       - proment_uploads:/app/uploads
