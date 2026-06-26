@@ -32,27 +32,10 @@ services:
       - proment_data:/app/data
       - proment_uploads:/app/uploads
       - proment_backups:/app/backups
-    expose:
-      - "3000"
-
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on:
-      - app
     ports:
-      - "80:80"
-      - "443:443"
-    command: >
-      sh -c "printf '%s\n' 'proment.click, www.proment.click {' '  reverse_proxy app:3000' '}' > /etc/caddy/Caddyfile
-      && caddy run --config /etc/caddy/Caddyfile --adapter caddyfile"
-    volumes:
-      - caddy_data:/data
-      - caddy_config:/config
+      - "${APP_PORT:-3000}:3000"
 
 volumes:
   proment_data:
   proment_uploads:
   proment_backups:
-  caddy_data:
-  caddy_config:
