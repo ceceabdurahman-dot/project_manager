@@ -16,18 +16,10 @@ services:
       BACKUP_PATH: ../backups
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
       BACKUP_RETAIN_DAYS: ${BACKUP_RETAIN_DAYS:-30}
-    command: >
-      sh -lc "
-        apt-get update
-        && apt-get install -y --no-install-recommends git ca-certificates
-        && rm -rf /var/lib/apt/lists/*
-        && rm -rf /app/source
-        && git clone --depth=1 --branch master https://github.com/ceceabdurahman-dot/project_manager.git /app/source
-        && cd /app/source
-        && npm run install:all
-        && npm run build
-        && npm start
-      "
+    command:
+      - sh
+      - -lc
+      - apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/* && rm -rf /app/source && git clone --depth=1 --branch master https://github.com/ceceabdurahman-dot/project_manager.git /app/source && cd /app/source/backend && npm ci --omit=dev && cd /app/source/frontend && npm ci && npm run build && cd /app/source && npm start
     volumes:
       - proment_data:/app/data
       - proment_uploads:/app/uploads
